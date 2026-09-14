@@ -96,6 +96,32 @@ derivation would give them `i` and `o`, so a consumer simply leaves them out.
 answering to it and Evennia would ask the player which they meant. The helper sees one direction per
 call and cannot spot it, so it belongs with the `TG` checks.
 
+`build_oneway_exit(room, direction, destination, directions, dungeon_id, aliases=None)` builds a
+single exit with no return. The fill pass is built out of these.
+
+| ID | Case | Test function |
+|---|---|---|
+| EX-12 | Creates one exit in the source room and none in the destination — it is one-way | test_ex_12_creates_one_exit_and_no_return |
+| EX-13 | The exit's destination is the room given | test_ex_13_the_exit_leads_to_the_destination_given |
+| EX-14 | The exit is keyed by the direction, not the destination room's name | test_ex_14_the_exit_is_keyed_by_direction_not_destination |
+| EX-15 | The exit is tagged with the dungeon id under the exit tag category | test_ex_15_the_exit_is_tagged_with_the_dungeon_id |
+| EX-16 | The exit is created as `settings.BASE_EXIT_TYPECLASS` | test_ex_16_the_exit_uses_the_configured_exit_typeclass |
+| EX-17 | The exit carries the alias mapped to its direction | test_ex_17_the_exit_carries_the_alias_for_its_direction |
+| EX-18 | No `aliases` mapping means no alias | test_ex_18_without_a_mapping_the_exit_carries_no_alias |
+| EX-19 | A direction absent from the `directions` mapping is refused, and the message names it | test_ex_19_an_unmapped_direction_is_refused_and_named |
+
+**EX-12 is the whole claim of the function.** The failure it catches is a fill exit that quietly
+became two-way, which would make every wrong guess in a dungeon costless.
+
+**EX-19 takes `directions` for a builder that needs no opposite.** The mapping is the dungeon's
+declared compass, so an exit built in a direction outside it is a bug — and a silent one, because the
+exit still works if a player types the word. The fill pass holds the mapping anyway, so both builders
+take the same arguments.
+
+**No destination default.** A one-way exit leading back to its own room is how a world edge is built —
+walk west, end up where you started — and nothing here needs it. Our fill exits always have a real
+destination.
+
 ## Open decisions
 
 - `[TBD — needs discussion: FixedRoomDungeon's own cases. The algorithm is agreed in design.md;

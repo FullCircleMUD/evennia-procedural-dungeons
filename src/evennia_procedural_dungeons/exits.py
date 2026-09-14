@@ -50,12 +50,7 @@ def build_reciprocal_exits(
         ValueError: ``direction`` is not in ``directions``, so there is no
             opposite to build the return exit in.
     """
-    if direction not in directions:
-        raise ValueError(
-            f"{direction!r} is not in this dungeon's directions, so there is "
-            f"no opposite to build the return exit in. Declared directions: "
-            f"{', '.join(sorted(directions))}."
-        )
+    _require_direction(direction, directions)
 
     opposite = directions[direction]
     aliases = aliases or {}
@@ -64,6 +59,58 @@ def build_reciprocal_exits(
         _build_exit(room_a, direction, room_b, dungeon_id, aliases.get(direction)),
         _build_exit(room_b, opposite, room_a, dungeon_id, aliases.get(opposite)),
     )
+
+
+def build_oneway_exit(
+    room, direction, destination, directions, dungeon_id, aliases=None
+):
+    """Build a single exit from ``room`` to ``destination``, with no return.
+
+    What the fill pass is made of: a spare direction that leads somewhere and
+    cannot be walked back through, so arriving tells a player nothing about
+    where they came from.
+
+    ``directions`` is taken even though no opposite is needed. It is the
+    dungeon's declared compass, so building in a direction outside it is a
+    bug — and a silent one, since the exit still works if a player types the
+    word.
+
+    Args:
+        room: The room the exit is placed in.
+        direction: The direction it leads in.
+        destination: Where it leads.
+        directions: Mapping of direction to opposite, as the consumer
+            declared it. Used to validate ``direction``, nothing more.
+        dungeon_id: The tag key the exit carries, under ``TAG_CATEGORY_EXIT``.
+        aliases: Optional mapping of direction to its short form. Omit it and
+            the exit gets no alias.
+
+    Returns:
+        The exit.
+
+    Raises:
+        ValueError: ``direction`` is not one of the dungeon's directions.
+    """
+    _require_direction(direction, directions)
+
+    aliases = aliases or {}
+    return _build_exit(
+        room, direction, destination, dungeon_id, aliases.get(direction)
+    )
+
+
+def _require_direction(direction, directions):
+    """Refuse a direction the dungeon did not declare, naming what it did.
+
+    Shared by both builders. A caller who mistyped gets the list rather than a
+    bare ``KeyError``, and the one-way builder gets the same refusal even
+    though it never reads an opposite.
+    """
+    if direction not in directions:
+        raise ValueError(
+            f"{direction!r} is not in this dungeon's directions. Declared "
+            f"directions: {', '.join(sorted(directions))}."
+        )
 
 
 def _build_exit(room, direction, destination, dungeon_id, alias=None):

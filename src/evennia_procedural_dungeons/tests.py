@@ -13,7 +13,10 @@ from django.test import TestCase
 
 import evennia_procedural_dungeons
 from evennia_procedural_dungeons.config import TAG_CATEGORY_EXIT
-from evennia_procedural_dungeons.exits import build_reciprocal_exits
+from evennia_procedural_dungeons.exits import (
+    build_oneway_exit,
+    build_reciprocal_exits,
+)
 
 #: A ``directions`` mapping as a consumer would declare one. Symmetric, and
 #: carrying a pair whose opposite is not another compass point, so a case can
@@ -152,3 +155,69 @@ class BuildReciprocalExitsTests(TestCase):
 
         self.assertEqual(exit_ab.aliases.all(), ["n"])
         self.assertEqual(exit_ba.aliases.all(), [])
+
+
+class BuildOnewayExitTests(TestCase):
+    """EX — ``build_oneway_exit``, the builder the fill pass is made of."""
+
+    def setUp(self):
+        self.room_a = make_room("Room A")
+        self.room_b = make_room("Room B")
+
+    def build(self, direction="north", aliases=None):
+        """Build a single exit from A to B."""
+        return build_oneway_exit(
+            self.room_a, direction, self.room_b, DIRECTIONS, DUNGEON_ID, aliases
+        )
+
+    def test_ex_12_creates_one_exit_and_no_return(self):
+        """EX-12"""
+        self.build()
+
+        self.assertEqual(len(self.room_a.exits), 1)
+        self.assertEqual(len(self.room_b.exits), 0)
+
+    def test_ex_13_the_exit_leads_to_the_destination_given(self):
+        """EX-13"""
+        exit_obj = self.build()
+
+        self.assertEqual(exit_obj.location, self.room_a)
+        self.assertEqual(exit_obj.destination, self.room_b)
+
+    def test_ex_14_the_exit_is_keyed_by_direction_not_destination(self):
+        """EX-14"""
+        exit_obj = self.build(direction="east")
+
+        self.assertEqual(exit_obj.key, "east")
+        self.assertNotEqual(exit_obj.key, self.room_b.key)
+
+    def test_ex_15_the_exit_is_tagged_with_the_dungeon_id(self):
+        """EX-15"""
+        exit_obj = self.build()
+
+        self.assertTrue(exit_obj.tags.has(DUNGEON_ID, category=TAG_CATEGORY_EXIT))
+
+    def test_ex_16_the_exit_uses_the_configured_exit_typeclass(self):
+        """EX-16"""
+        exit_obj = self.build()
+
+        self.assertEqual(exit_obj.typeclass_path, settings.BASE_EXIT_TYPECLASS)
+
+    def test_ex_17_the_exit_carries_the_alias_for_its_direction(self):
+        """EX-17"""
+        exit_obj = self.build(direction="west", aliases=ALIASES)
+
+        self.assertEqual(exit_obj.aliases.all(), ["w"])
+
+    def test_ex_18_without_a_mapping_the_exit_carries_no_alias(self):
+        """EX-18"""
+        exit_obj = self.build()
+
+        self.assertEqual(exit_obj.aliases.all(), [])
+
+    def test_ex_19_an_unmapped_direction_is_refused_and_named(self):
+        """EX-19"""
+        with self.assertRaises(ValueError) as raised:
+            self.build(direction="widdershins")
+
+        self.assertIn("widdershins", str(raised.exception))
